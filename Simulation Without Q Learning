@@ -1,0 +1,203 @@
+
+import pygame
+import random
+import numpy as np
+import imageio
+
+# Initialize Pygame
+pygame.init()
+
+# Constants
+SCREEN_WIDTH = 800  # Increased screen width
+SCREEN_HEIGHT = 800  # Increased screen height
+GRID_SIZE = 20  # Increased grid size
+CELL_SIZE = SCREEN_WIDTH // GRID_SIZE
+ENERGY_THRESHOLD = 15
+REPRODUCTION_COST = 10
+FOOD_ENERGY = 5
+ANIMAL_ENERGY = 10
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+YELLOW = (255, 255, 0)
+RED = (255, 69, 0)  # Brighter red
+GREEN = (34, 139, 34)  # Darker green
+BLUE = (30, 144, 255)  # Brighter blue
+
+class Agent:
+    def __init__(self, energy, position, agent_type, name, color):
+        self.energy = energy
+        self.position = position
+        self.agent_type = agent_type
+        self.name = name
+        self.color = color
+
+    def choose_action(self):
+        # Random action without Q-Learning
+        return random.choice([0, 1, 2, 3])
+
+    def move(self, action):
+        if action == 0:  # up
+            self.position[0] = max(0, self.position[0] - 1)
+        elif action == 1:  # down
+            self.position[0] = min(GRID_SIZE - 1, self.position[0] + 1)
+        elif action == 2:  # left
+            self.position[1] = max(0, self.position[1] - 1)
+        elif action == 3:  # right
+            self.position[1] = min(GRID_SIZE - 1, self.position[1] + 1)
+
+    def perform_action(self, action):
+        old_position = self.position.copy()
+        self.move(action)
+        self.energy -= 1  # Consuming energy for moving
+        return old_position, self.position
+
+class Environment:
+    def __init__(self):
+        animal_types = [
+            {'type': 'Lion', 'color': RED},
+            {'type': 'Elephant', 'color': GREEN},
+            {'type': 'Hawk', 'color': BLUE}
+        ]
+        self.agents = []
+        for _ in range(100):  # Increased number of agents to 100
+            animal = random.choice(animal_types)
+            self.agents.append(Agent(
+                energy=ANIMAL_ENERGY,
+                position=[random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1)],
+                agent_type=animal['type'],
+                name=f"{animal['type']}{random.randint(1, 1000)}",  # Unique names for easier tracking
+                color=animal['color']
+            ))
+        self.resources = {(random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1)): FOOD_ENERGY for _ in range(50)}
+
+    def step(self):
+        events = []
+        for agent in self.agents:
+            if agent.energy > 0:
+                action = agent.choose_action()
+                old_position, new_position = agent.perform_action(action)
+                event_description = f"{agent.name} moved from {old_position} to {new_position}."
+
+                reward = -1  # Default reward for moving
+                if tuple(new_position) in self.resources:
+                    reward += self.resources[tuple(new_position)]
+                    agent.energy += self.resources[tuple(new_position)]
+                    event_description += f" {agent.name} found food and gained {self.resources[tuple(new_position)]} energy."
+                    del self.resources[tuple(new_position)]
+
+                # Check for other agents in the same position (fighting scenario)
+                agents_in_new_position = [a for a in self.agents if a.position == new_position and a != agent]
+                if agents_in_new_position:
+                    event_description += f" {agent.name} encountered {len(agents_in_new_position)} other agent(s) at {new_position}."
+
+                events.append(event_description)
+
+        self.reproduce_agents(events)
+        self.remove_dead_agents(events)
+        self.generate_resources()
+        return events
+
+    def reproduce_agents(self, events):
+        new_agents = []
+        for agent in self.agents:
+            if agent.energy > ENERGY_THRESHOLD:
+                agent.energy -= REPRODUCTION_COST
+                new_agent = Agent(
+                    energy=5,
+                    position=agent.position.copy(),
+                    agent_type=agent.agent_type,
+                    name=f"{agent.agent_type}{random.randint(1, 1000)}",  # Unique names for new agents
+                    color=agent.color
+                )
+                new_agents.append(new_agent)
+                events.append(f"{agent.name} reproduced creating {new_agent.name}.")
+        self.agents.extend(new_agents)
+
+    def remove_dead_agents(self, events):
+        for agent in self.agents:
+            if agent.energy <= 0:
+                events.append(f"{agent.name} died.")
+        self.agents = [agent for agent in self.agents if agent.energy > 0]
+
+    def generate_resources(self):
+        for _ in range(10):  # Increased frequency of resource generation
+            self.resources[(random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1))] = FOOD_ENERGY
+
+    def draw(self, screen):
+        screen.fill(WHITE)
+        
+        # Draw grid
+        for x in range(GRID_SIZE):
+            for y in range(GRID_SIZE):
+                rect = pygame.Rect(y * CELL_SIZE, x * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+                pygame.draw.rect(screen, BLACK, rect, 1)
+
+        # Draw resources (food)
+        for (x, y), _ in self.resources.items():
+            pygame.draw.circle(screen, YELLOW, (y * CELL_SIZE + CELL_SIZE // 2, x * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 4)
+
+        # Draw agents
+        for agent in self.agents:
+            x, y = agent.position
+            pygame.draw.circle(screen, agent.color, (y * CELL_SIZE + CELL_SIZE // 2, x * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 3)
+
+            # Display energy level
+            font = pygame.font.Font(None, 24)
+            text = font.render(str(agent.energy), True, BLACK)
+            screen.blit(text, (y * CELL_SIZE + 20, x * CELL_SIZE + 20))
+
+            # Display agent type label
+            agent_type_label = font.render(agent.agent_type, True, BLACK)
+            screen.blit(agent_type_label, (y * CELL_SIZE + 20, x * CELL_SIZE + 40))
+
+all_events_no_qlearning = []
+
+def main():
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    pygame.display.set_caption('Animal Simulation Game (No Q-Learning)')
+
+    clock = pygame.time.Clock()
+    env = Environment()
+
+    running = True
+    steps = 0
+    max_steps = 150  # Adjust max_steps for desired duration
+
+    frames = []
+
+    while running and steps < max_steps:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        events = env.step()
+        all_events_no_qlearning.extend(events)  # Collecting events
+
+        env.draw(screen)
+        
+        pygame.display.flip()
+        
+        # Capture the frame
+        frame = pygame.surfarray.array3d(screen)
+        frame = np.rot90(frame)
+        frame = np.flipud(frame)
+        frames.append(frame)
+
+        clock.tick(3)  # Adjust speed for slower video
+
+        for event in events:
+            print(event)
+        
+        steps += 1
+
+    pygame.quit()
+
+    # Save frames to video
+    video_file = 'no_qlearning_simulation.mp4'
+    imageio.mimsave(video_file, frames, fps=3)  # Adjust fps for desired playback speed
+    print(f"Video saved as {video_file}")
+
+if __name__ == "__main__":
+    main()
