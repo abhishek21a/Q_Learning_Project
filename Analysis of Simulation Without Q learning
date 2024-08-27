@@ -1,0 +1,78 @@
+import matplotlib.pyplot as plt
+
+# Normalize colors (divide by 255)
+RED = (255/255, 69/255, 0/255)  # Bright red
+BLUE = (30/255, 144/255, 255/255)  # Bright blue
+GREEN = (34/255, 139/255, 34/255)  # Darker green
+
+# Assuming `all_events_no_qlearning` has been populated by the No Q-Learning simulation
+def plot_population_no_qlearning():
+    lions = []
+    hawks = []
+    elephants = []
+    lion_deaths = []
+    hawk_deaths = []
+    elephant_deaths = []
+
+    lion_count = 0
+    hawk_count = 0
+    elephant_count = 0
+    lion_death_count = 0
+    hawk_death_count = 0
+    elephant_death_count = 0
+
+    for event in all_events_no_qlearning:
+        if 'Lion' in event:
+            if 'died' in event:
+                lion_death_count += 1
+            elif 'reproduced' in event:
+                lion_count += 1
+            elif 'gained' in event:
+                lion_count += 1
+        elif 'Hawk' in event:
+            if 'died' in event:
+                hawk_death_count += 1
+            elif 'reproduced' in event:
+                hawk_count += 1
+            elif 'gained' in event:
+                hawk_count += 1
+        elif 'Elephant' in event:
+            if 'died' in event:
+                elephant_death_count += 1
+            elif 'reproduced' in event:
+                elephant_count += 1
+            elif 'gained' in event:
+                elephant_count += 1
+        
+        lions.append(lion_count)
+        hawks.append(hawk_count)
+        elephants.append(elephant_count)
+        lion_deaths.append(lion_death_count)
+        hawk_deaths.append(hawk_death_count)
+        elephant_deaths.append(elephant_death_count)
+
+    # Population plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(lions, label='Lions', color=RED, linewidth=2)
+    plt.plot(hawks, label='Hawks', color=BLUE, linewidth=2)
+    plt.plot(elephants, label='Elephants', color=GREEN, linewidth=2)
+    plt.xlabel('Steps')
+    plt.ylabel('Number of Animals')
+    plt.title('Animal Population Over Time (No Q-Learning)')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # Deaths plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(lion_deaths, label='Lion Deaths', linestyle='--', color=RED, linewidth=2)
+    plt.plot(hawk_deaths, label='Hawk Deaths', linestyle='--', color=BLUE, linewidth=2)
+    plt.plot(elephant_deaths, label='Elephant Deaths', linestyle='--', color=GREEN, linewidth=2)
+    plt.xlabel('Steps')
+    plt.ylabel('Number of Deaths')
+    plt.title('Animal Deaths Over Time (No Q-Learning)')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+plot_population_no_qlearning()
